@@ -134,7 +134,14 @@ def shift_predictors(config, df_source):
 
     df_shifted = pd.concat(list_predictors_shifted, axis=1)
     srs_response = df_source[config['glm_params']['response']]
-    non_nans = (df_shifted.isna().sum(axis=1) == 0)&~np.isnan(srs_response)
+    a = df_shifted.isna().sum(axis=1) == 0
+    # print(f"a: {a}")
+    b = ~np.isnan(srs_response).astype(bool)
+    b = b['z_grnR']
+    # print(b['z_grnR'])
+    # print(f"b: {b}")
+    non_nans = a&b #np.where(np.logical_and(a, b))[0]
+    # non_nans = (df_shifted.isna().sum(axis=1) == 0)&~np.isnan(srs_response)
     df_predictors_fit = df_shifted[non_nans].copy()
     srs_response_fit = srs_response[non_nans].copy()
 
@@ -260,6 +267,8 @@ def calc_r2(y_pred, y):
         r2 of the model
     """
 
+    print(f"ypred: {y_pred}")
+    print(f"y: {y}")
     residuals, avg_residuals = calc_residuals(y_pred, y)
     rss = np.sum(residuals**2)
     tss = np.sum(avg_residuals**2)
