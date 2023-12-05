@@ -14,12 +14,12 @@ from sklearn.linear_model import ElasticNet, ElasticNetCV
 
 
 
-def save_model(model_dict, config):
+def save_model(model_dict, save_model_path):
     """
     Save the model to the specified path in config.yaml
     """
-    model_path = config['Project']['project_path'] + '/models'
-    model_name = config['Project']['project_name'] + '_model.pkl'
+    model_path = save_model_path + '/models'
+    model_name = save_model_path + '_model.pkl'
     model_full_path = os.path.join(model_path, model_name)
     with open(model_full_path, 'wb') as f:
         pickle.dump(model_dict, f)
@@ -37,7 +37,7 @@ def split_data(X, y, config):
 
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, train_size=train_size, test_size=test_size)
+        X, y, train_size=train_size, test_size=test_size) #, shuffle=False, random_state=42)
 
     return X_train, X_test, y_train, y_test
 
@@ -302,7 +302,7 @@ def calc_mse(y_pred, y):
 
     return mse
 
-def plot_and_save(config, y_pred, y_test, beta, df_predictors_shift):
+def plot_and_save(save_path, config, y_pred, y_test, beta, df_predictors_shift, val):
     """
     Plot and save the predictions vs actual values and the model fit results
     Will be saved in the results folder of the project path
@@ -316,9 +316,9 @@ def plot_and_save(config, y_pred, y_test, beta, df_predictors_shift):
     ax.scatter(y_pred, y_test,s=50, alpha=0.5, color=colors[0])
     ax.set_xlabel('Predicted Values')
     ax.set_ylabel('Actual Values')
-    ax.set_title('Predicted vs Actual Values')
+    ax.set_title(f'Predicted vs Actual Values: {val}%')
     ax.grid(True)
-    plt.savefig(config['Project']['project_path'] + '/results/predicted_vs_actual.png')
+    plt.savefig(save_path + '/results/predicted_vs_actual.png')
     plt.close()
 
     #plot histogram of residuals
@@ -329,18 +329,20 @@ def plot_and_save(config, y_pred, y_test, beta, df_predictors_shift):
     ax.set_ylabel('Count')
     ax.set_title('Residuals')
     ax.grid(True)
-    plt.savefig(config['Project']['project_path'] + '/results/residuals.png')
+    plt.savefig(save_path + '/results/residuals.png')
     plt.close()
 
     #save model fit results
     model_fit_results = pd.Series(beta, index=df_predictors_shift.columns, name='coef').unstack(0, )
     model_fit_results.index = model_fit_results.index.astype(int)
     model_fit_results = model_fit_results.reindex(config['glm_params']['predictors'], axis=1)
+    
 
     tup_y_lim = (np.inf, -np.inf)
     fig, axes = plt.subplots(1, len(model_fit_results.columns), figsize=(5*len(model_fit_results.columns), 5))
     axes = axes.flatten()
     for ipredictor, predictor in enumerate(model_fit_results.columns):
+            
         axes[ipredictor].plot(model_fit_results.sort_index()[predictor])
         axes[ipredictor].set_title(predictor)
         axes[ipredictor].grid(True)
@@ -351,7 +353,8 @@ def plot_and_save(config, y_pred, y_test, beta, df_predictors_shift):
     for ax in axes:
         ax.set_ylim(tup_y_lim)
     fig.suptitle('GLM Coefficients Fit Results')
-    plt.savefig(config['Project']['project_path'] + '/results/model_fit.png')
+    plt.savefig(save_path + '/results/model_fit.png')
+    print(f"saved to: {save_path + '/results/model_fit.png'}")
     plt.close()
 
     
