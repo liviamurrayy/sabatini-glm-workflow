@@ -134,7 +134,14 @@ def shift_predictors(config, df_source):
 
     df_shifted = pd.concat(list_predictors_shifted, axis=1)
     srs_response = df_source[config['glm_params']['response']]
-    non_nans = (df_shifted.isna().sum(axis=1) == 0)&~np.isnan(srs_response)
+    a = df_shifted.isna().sum(axis=1) == 0
+    # print(f"a: {a}")
+    b = ~np.isnan(srs_response).astype(bool)
+    b = b['z_grnR']
+    # print(b['z_grnR'])
+    # print(f"b: {b}")
+    non_nans = a&b #np.where(np.logical_and(a, b))[0]
+    # non_nans = (df_shifted.isna().sum(axis=1) == 0)&~np.isnan(srs_response)
     df_predictors_fit = df_shifted[non_nans].copy()
     srs_response_fit = srs_response[non_nans].copy()
 
@@ -142,7 +149,7 @@ def shift_predictors(config, df_source):
 
 
 
-def fit_EN(config, X_train, X_test, y_train, y_test):
+def fit_glm(config, X_train, X_test, y_train, y_test):
         """
         Fit a GLM model using ElasticNet from scikit-learn
         Will pass in values from config file
@@ -178,7 +185,7 @@ def fit_EN(config, X_train, X_test, y_train, y_test):
     
         return model, y_pred, score, beta, intercept, sparse_beta
 
-def fit_tuned_EN(config, X_train, X_test, y_train, y_test):
+def fit_tuned_glm(config, X_train, X_test, y_train, y_test):
             """
             Fit a GLM model using ElasticNetCV from scikit-learn
             Will pass in values from config file. You will need to
@@ -217,75 +224,75 @@ def fit_tuned_EN(config, X_train, X_test, y_train, y_test):
         
             return tuned_model, y_pred, score, beta, best_params
 
+
 def fit_ridge(config, X_train, X_test, y_train, y_test):
-        """
-        Fit a Ridge model using Ridge from scikit-learn
-        Will pass in values from config file
-        """
-        
-        alpha=config['glm_params']['ridge_keyword_args']['alpha']
-        fit_intercept=config['glm_params']['ridge_keyword_args']['fit_intercept']
-        max_iter=config['glm_params']['ridge_keyword_args']['max_iter']
-        solver=config['glm_params']['ridge_keyword_args']['solver']      
-        score_metric = config['glm_params']['ridge_keyword_args']['score_metric']
-        
+    """
+    Fit a Ridge model using Ridge from scikit-learn
+    Will pass in values from config file
+    """
     
-        model = Ridge(alpha=alpha, fit_intercept=fit_intercept, 
-                            max_iter=max_iter, copy_X=True,
-                            solver=solver)
-        
-        model.fit(X_train, y_train)
-        beta = model.coef_
-        intercept = model.intercept_
-
-        y_pred = model.predict(X_test)
-
-
-        if score_metric == 'r2':
-            score = calc_r2(y_pred, y_test)
-        elif score_metric == 'mse':
-            score = calc_mse(y_pred, y_test)
-        elif score_metric == 'avg':
-            score = model.score(y_pred, y_test)
+    alpha=config['glm_params']['ridge_keyword_args']['alpha']
+    fit_intercept=config['glm_params']['ridge_keyword_args']['fit_intercept']
+    max_iter=config['glm_params']['ridge_keyword_args']['max_iter']
+    solver=config['glm_params']['ridge_keyword_args']['solver']      
+    score_metric = config['glm_params']['ridge_keyword_args']['score_metric']
     
-        return model, y_pred, score, beta, intercept
+
+    model = Ridge(alpha=alpha, fit_intercept=fit_intercept, 
+                        max_iter=max_iter, copy_X=True,
+                        solver=solver)
+    
+    model.fit(X_train, y_train)
+    beta = model.coef_
+    intercept = model.intercept_
+
+    y_pred = model.predict(X_test)
+
+
+    if score_metric == 'r2':
+        score = calc_r2(y_pred, y_test)
+    elif score_metric == 'mse':
+        score = calc_mse(y_pred, y_test)
+    elif score_metric == 'avg':
+        score = model.score(y_pred, y_test)
+
+    return model, y_pred, score, beta, intercept
 
 def fit_tuned_ridge(config, X_train, X_test, y_train, y_test):
-            """
-            Fit a Ridge model using RidgeCV from scikit-learn
-            Will pass in values from config file. You will need to
-            provide a list of alphas to test.
-            """
-            
-            alpha=config['glm_params']['ridge_keyword_args']['alpha']
-            cv = config['glm_params']['ridge_keyword_args']['cv']
-            fit_intercept=config['glm_params']['ridge_keyword_args']['fit_intercept']
-            gcv_mode=config['glm_params']['ridge_keyword_args']['gcv_mode']   
-            score_metric = config['glm_params']['ridge_keyword_args']['score_metric']
-            
-            tuned_model = RidgeCV(alphas=alpha, fit_intercept=fit_intercept, 
-                                cv=cv, scoring=score_metric, store_cv_values=False,
-                                gcv_mode=gcv_mode, alpha_per_target=False)
-            
-            tuned_model.fit(X_train, y_train)
-
-            best_alpha = tuned_model.alpha_
-            best_score = tuned_model.best_score_
-            best_params = dict(alpha=best_alpha,
-                               best_score=best_score)
-            beta = tuned_model.coef_
-
-            y_pred = tuned_model.predict(X_test)
+    """
+    Fit a Ridge model using RidgeCV from scikit-learn
+    Will pass in values from config file. You will need to
+    provide a list of alphas to test.
+    """
     
-            if score_metric == 'r2':
-                score = calc_r2(y_pred, y_test)
-            elif score_metric == 'mse':
-                score = calc_mse(y_pred, y_test)
-            elif score_metric == 'avg':
-                score = tuned_model.score(y_pred, y_test)
-        
-            return tuned_model, y_pred, score, beta, best_params
+    alpha=config['glm_params']['ridge_keyword_args']['alpha']
+    cv = config['glm_params']['ridge_keyword_args']['cv']
+    fit_intercept=config['glm_params']['ridge_keyword_args']['fit_intercept']
+    gcv_mode=config['glm_params']['ridge_keyword_args']['gcv_mode']   
+    score_metric = config['glm_params']['ridge_keyword_args']['score_metric']
+    
+    tuned_model = RidgeCV(alphas=alpha, fit_intercept=fit_intercept, 
+                        cv=cv, scoring=score_metric, store_cv_values=False,
+                        gcv_mode=gcv_mode, alpha_per_target=False)
+    
+    tuned_model.fit(X_train, y_train)
 
+    best_alpha = tuned_model.alpha_
+    best_score = tuned_model.best_score_
+    best_params = dict(alpha=best_alpha,
+                        best_score=best_score)
+    beta = tuned_model.coef_
+
+    y_pred = tuned_model.predict(X_test)
+
+    if score_metric == 'r2':
+        score = calc_r2(y_pred, y_test)
+    elif score_metric == 'mse':
+        score = calc_mse(y_pred, y_test)
+    elif score_metric == 'avg':
+        score = tuned_model.score(y_pred, y_test)
+
+    return tuned_model, y_pred, score, beta, best_params
 
 
 
@@ -329,6 +336,8 @@ def calc_r2(y_pred, y):
         r2 of the model
     """
 
+    print(f"ypred: {y_pred}")
+    print(f"y: {y}")
     residuals, avg_residuals = calc_residuals(y_pred, y)
     rss = np.sum(residuals**2)
     tss = np.sum(avg_residuals**2)
